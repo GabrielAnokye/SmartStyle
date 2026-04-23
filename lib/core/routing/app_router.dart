@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smartstyle/core/services/supabase_service.dart';
 import 'package:smartstyle/features/auth/presentation/login_screen.dart';
+import 'package:smartstyle/features/intake/presentation/manual_intake_screen.dart';
+import 'package:smartstyle/features/wardrobe/presentation/closet_screen.dart';
 
 // Placeholder screens
 class DashboardScreen extends ConsumerWidget {
@@ -22,12 +24,6 @@ class DashboardScreen extends ConsumerWidget {
       body: const Center(child: Text('Dashboard Placeholder\n\nYou are logged in!')),
     );
   }
-}
-
-class ClosetScreen extends StatelessWidget {
-  const ClosetScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Center(child: Text('Closet Placeholder'));
 }
 
 class AnalyticsScreen extends StatelessWidget {
@@ -94,7 +90,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/closet', builder: (context, state) => const ClosetScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/add', builder: (context, state) => const Scaffold(body: Center(child: Text('Camera Flow Placeholder'))))]),
+          StatefulShellBranch(routes: [GoRoute(path: '/add', builder: (context, state) => const ManualIntakeScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/analytics', builder: (context, state) => const AnalyticsScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen())]),
         ],
