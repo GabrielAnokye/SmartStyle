@@ -7,19 +7,22 @@ import 'package:smartstyle/core/routing/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await dotenv.load(fileName: ".env");
 
-  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'https://your-project.supabase.co';
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? 'your-anon-key';
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  if (supabaseUrl == null || supabaseUrl.isEmpty ||
+      supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+    throw StateError(
+      'Missing SUPABASE_URL or SUPABASE_ANON_KEY in .env — app cannot start.',
+    );
+  }
+
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   final sentryDsn = dotenv.env['SENTRY_DSN'];
-  
   if (sentryDsn != null && sentryDsn.isNotEmpty && sentryDsn != 'YOUR_SENTRY_DSN') {
     await SentryFlutter.init(
       (options) {
@@ -39,7 +42,6 @@ class SmartStyleApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
-
     return MaterialApp.router(
       title: 'SmartStyle',
       theme: ThemeData(

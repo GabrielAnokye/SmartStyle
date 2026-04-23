@@ -32,6 +32,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final supabase = ref.read(supabaseClientProvider);
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.supabase.smartstyle://login-callback/',
+      );
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _signUp() async {
     setState(() => _isLoading = true);
     try {
@@ -84,11 +101,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             if (_isLoading)
               const CircularProgressIndicator()
             else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              Column(
                 children: [
-                  ElevatedButton(onPressed: _signIn, child: const Text('Login')),
-                  TextButton(onPressed: _signUp, child: const Text('Sign Up')),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(onPressed: _signIn, child: const Text('Login')),
+                      TextButton(onPressed: _signUp, child: const Text('Sign Up')),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _signInWithGoogle,
+                    icon: const Icon(Icons.g_mobiledata),
+                    label: const Text('Continue with Google'),
+                  ),
                 ],
               ),
           ],

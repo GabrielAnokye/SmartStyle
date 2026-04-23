@@ -5,8 +5,9 @@ import 'package:smartstyle/core/services/supabase_service.dart';
 import 'package:smartstyle/features/auth/presentation/login_screen.dart';
 import 'package:smartstyle/features/intake/presentation/manual_intake_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/closet_screen.dart';
+import 'package:smartstyle/features/wardrobe/presentation/item_detail_screen.dart';
+import 'package:smartstyle/features/wardrobe/presentation/item_edit_screen.dart';
 
-// Placeholder screens
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
   @override
@@ -38,10 +39,8 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) => const Center(child: Text('Profile Placeholder'));
 }
 
-// Scaffold with Bottom Navigation Bar
 class AppScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
-
   const AppScaffold({super.key, required this.navigationShell});
 
   @override
@@ -68,33 +67,46 @@ class AppScaffold extends StatelessWidget {
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
+  // Invalidate any caches tied to the session whenever the signed-in user changes.
+  ref.listen(authStateProvider, (prev, next) {
+    final prevUser = prev?.value?.session?.user.id;
+    final nextUser = next.value?.session?.user.id;
+    if (prevUser != nextUser) {
+      ref.invalidate(itemsProvider);
+    }
+  });
+
   return GoRouter(
     initialLocation: '/dashboard',
     redirect: (context, state) {
       final isAuthenticated = authState.value?.session != null;
       final isLoggingIn = state.matchedLocation == '/login';
-
       if (!isAuthenticated && !isLoggingIn) return '/login';
       if (isAuthenticated && isLoggingIn) return '/dashboard';
       return null;
     },
     routes: [
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        path: '/closet/:id',
+        builder: (context, state) => ItemDetailScreen(itemId: state.pathParameters['id']!),
+        routes: [
+          GoRoute(
+            path: 'edit',
+            builder: (context, state) => ItemEditScreen(itemId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) {
-          return AppScaffold(navigationShell: navigationShell);
-        },
+        builder: (context, state, navigationShell) => AppScaffold(navigationShell: navigationShell),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/closet', builder: (context, state) => const ClosetScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/add', builder: (context, state) => const ManualIntakeScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/analytics', builder: (context, state) => const AnalyticsScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (c, s) => const DashboardScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/closet', builder: (c, s) => const ClosetScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/add', builder: (c, s) => const ManualIntakeScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/analytics', builder: (c, s) => const AnalyticsScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen())]),
         ],
-      )
+      ),
     ],
   );
 });

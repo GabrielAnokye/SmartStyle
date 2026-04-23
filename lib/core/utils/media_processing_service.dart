@@ -4,53 +4,56 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:palette_generator/palette_generator.dart';
 
 class MediaProcessingService {
-  /// Compresses an image to be strictly <= targetSizeKB (default 200KB).
-  /// Max edge is bound to 1024px to preserve storage.
-  static Future<Uint8List?> compressImage(XFile file, {int targetSizeKB = 200}) async {
-    final filePath = file.path;
-    Uint8List? result;
+  /// Compresses an image to <= targetSizeKB (default 200KB).
+  /// Caps the long edge at maxEdgePx (default 1024). Returns null if the
+  /// target cannot be met even at minimum quality.
+  static Future<Uint8List?> compressImage(
+    XFile file, {
+    int targetSizeKB = 200,
+    int maxEdgePx = 1024,
+  }) async {
     int quality = 90;
+    Uint8List? last;
 
-    debugPrint('Starting image compression for target: ${targetSizeKB}KB');
-
-    do {
-      result = await FlutterImageCompress.compressWithFile(
-        filePath,
-        minWidth: 1024,
-        minHeight: 1024,
+    while (quality >= 20) {
+      final result = await FlutterImageCompress.compressWithFile(
+        file.path,
+        // Cap the long edge; flutter_image_compress keeps aspect ratio and
+        // only scales DOWN when the source exceeds these bounds.
+        minWidth: maxEdgePx,
+        minHeight: maxEdgePx,
         quality: quality,
+        keepExif: false,
       );
+      if (result == null) return null;
+      last = result;
 
-      if (result == null) break;
+      final sizeKB = result.lengthInBytes / 1024;
+      debugPrint('compressImage quality=$quality size=${sizeKB.toStringAsFixed(1)}KB');
+      if (sizeKB <= targetSizeKB) return result;
 
-      final currentSizeKB = result.lengthInBytes / 1024;
-      if (currentSizeKB <= targetSizeKB) {
-        break; // Within limits
-      }
-      
       quality -= 10;
-      if (quality < 10) break; // Hard stop
-    } while (true);
-
-    return result;
+    }
+    // Couldn't hit the budget — return null so the caller can surface a clear error
+    // instead of silently uploading an oversized image.
+    return (last != null && last.lengthInBytes <= targetSizeKB * 1024) ? last : null;
   }
 
-  /// Extracts dominant color hex safely from memory bytes.
-  static Future<String> extractDominantColor(Uint8List imageBytes) async {
+  /// Extracts a dominant color hex. Returns null on failure so callers can
+  /// distinguish "no color found" from a real grey.
+  static Future<String?> extractDominantColor(Uint8List imageBytes) async {
     try {
-      final imageProvider = MemoryImage(imageBytes);
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
-        imageProvider,
+      final palette = await PaletteGenerator.fromImageProvider(
+        MemoryImage(imageBytes),
         maximumColorCount: 5,
       );
-
-      final dominantColor = paletteGenerator.dominantColor?.color ?? Colors.grey;
-      
-      // Convert Color to Hex string e.g., "#2B4A6B"
-      return '#${dominantColor.toARGB32().toRadixString(16).substring(2).toUpperCase()}';
+      final dominant = palette.dominantColor?.color;
+      if (dominant == null) return null;
+      final argb = dominant.toARGB32();
+      return '#${argb.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
     } catch (e) {
       debugPrint('Color extraction failed: $e');
-      return '#808080'; // fallback grey
+      return null;
     }
   }
 }
