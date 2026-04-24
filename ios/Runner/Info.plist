@@ -32,6 +32,8 @@
 	<string>SmartStyle saves processed clothing photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>SmartStyle needs access to your photo library to import clothing images.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SmartStyle uses your location to pull the local weather for outfit recommendations. You can also set a city manually.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

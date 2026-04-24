@@ -10,25 +10,7 @@ import 'package:smartstyle/features/intake/presentation/manual_intake_screen.dar
 import 'package:smartstyle/features/wardrobe/presentation/closet_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/item_detail_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/item_edit_screen.dart';
-
-class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(supabaseClientProvider).auth.signOut(),
-          )
-        ],
-      ),
-      body: const Center(child: Text('Dashboard Placeholder\n\nYou are logged in!')),
-    );
-  }
-}
+import 'package:smartstyle/features/recommendations/presentation/home_dashboard_screen.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
@@ -103,7 +85,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppScaffold(navigationShell: navigationShell),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (c, s) => const DashboardScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (c, s) => const HomeDashboardScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/closet', builder: (c, s) => const ClosetScreen())]),
           StatefulShellBranch(routes: [
             GoRoute(
