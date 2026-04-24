@@ -11,13 +11,20 @@ class MediaProcessingService {
     XFile file, {
     int targetSizeKB = 200,
     int maxEdgePx = 1024,
+  }) =>
+      compressImagePath(file.path, targetSizeKB: targetSizeKB, maxEdgePx: maxEdgePx);
+
+  static Future<Uint8List?> compressImagePath(
+    String filePath, {
+    int targetSizeKB = 200,
+    int maxEdgePx = 1024,
   }) async {
     int quality = 90;
     Uint8List? last;
 
     while (quality >= 20) {
       final result = await FlutterImageCompress.compressWithFile(
-        file.path,
+        filePath,
         // Cap the long edge; flutter_image_compress keeps aspect ratio and
         // only scales DOWN when the source exceeds these bounds.
         minWidth: maxEdgePx,

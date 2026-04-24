@@ -113,7 +113,7 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<ClosetFilter>(closetFilterProvider, (_, __) {
+    ref.listen<ClosetFilter>(closetFilterProvider, (_, _) {
       ref.invalidate(itemsProvider);
     });
 
@@ -212,7 +212,7 @@ class _ItemCard extends ConsumerWidget {
                     const Icon(Icons.image_not_supported, color: Colors.grey),
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Icon(Icons.broken_image, color: Colors.grey),
+              error: (_, _) => const Icon(Icons.broken_image, color: Colors.grey),
             ),
             Positioned(
               bottom: 0,

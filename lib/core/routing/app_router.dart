@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smartstyle/core/services/supabase_service.dart';
 import 'package:smartstyle/features/auth/presentation/login_screen.dart';
+import 'package:smartstyle/features/intake/presentation/batch_camera_screen.dart';
+import 'package:smartstyle/features/intake/presentation/intake_hub_screen.dart';
+import 'package:smartstyle/features/intake/presentation/intake_queue_screen.dart';
 import 'package:smartstyle/features/intake/presentation/manual_intake_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/closet_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/item_detail_screen.dart';
@@ -102,7 +105,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/dashboard', builder: (c, s) => const DashboardScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/closet', builder: (c, s) => const ClosetScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/add', builder: (c, s) => const ManualIntakeScreen())]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/add',
+              builder: (c, s) => const IntakeHubScreen(),
+              routes: [
+                GoRoute(path: 'manual', builder: (c, s) => const ManualIntakeScreen()),
+                GoRoute(path: 'batch', builder: (c, s) => const BatchCameraScreen()),
+                GoRoute(path: 'queue', builder: (c, s) => const IntakeQueueScreen()),
+              ],
+            ),
+          ]),
           StatefulShellBranch(routes: [GoRoute(path: '/analytics', builder: (c, s) => const AnalyticsScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen())]),
         ],
