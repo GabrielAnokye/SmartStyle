@@ -124,6 +124,11 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
         title: const Text('My Closet'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.local_laundry_service_outlined),
+            tooltip: 'Laundry day done',
+            onPressed: _markAllClean,
+          ),
+          IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () => _openFilterSheet(context),
           ),
@@ -179,6 +184,37 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
       context: context,
       builder: (_) => _FilterSheet(initial: current),
     );
+  }
+
+  Future<void> _markAllClean() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Laundry day done?'),
+        content: const Text('Moves every item currently in the laundry basket back to clean.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Mark clean')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final count = await ref.read(wardrobeRepositoryProvider).markAllLaundryClean();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count item(s) back in rotation.')),
+      );
+      setState(() {
+        _loaded.clear();
+        _offset = 0;
+        _hasMore = true;
+      });
+      ref.invalidate(itemsProvider);
+    } on WardrobeException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 }
 

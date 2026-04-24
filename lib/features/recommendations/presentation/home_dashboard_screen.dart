@@ -5,6 +5,7 @@ import 'package:smartstyle/features/recommendations/data/geolocation_service.dar
 import 'package:smartstyle/features/recommendations/data/recommendations_providers.dart';
 import 'package:smartstyle/features/recommendations/domain/outfit.dart';
 import 'package:smartstyle/features/recommendations/domain/recommendation_context.dart';
+import 'package:smartstyle/features/wardrobe/data/wardrobe_repository.dart';
 import 'package:smartstyle/features/wardrobe/domain/item_model.dart';
 import 'package:smartstyle/features/wardrobe/presentation/closet_screen.dart';
 
@@ -139,10 +140,43 @@ class _OccasionPicker extends StatelessWidget {
   }
 }
 
-class _OutfitCard extends StatelessWidget {
+class _OutfitCard extends ConsumerStatefulWidget {
   final int rank;
   final Outfit outfit;
   const _OutfitCard({required this.rank, required this.outfit});
+
+  @override
+  ConsumerState<_OutfitCard> createState() => _OutfitCardState();
+}
+
+class _OutfitCardState extends ConsumerState<_OutfitCard> {
+  bool _logging = false;
+  bool _logged = false;
+
+  Future<void> _wearToday() async {
+    if (_logging || _logged) return;
+    setState(() => _logging = true);
+    final outfit = widget.outfit;
+    try {
+      await ref.read(wardrobeRepositoryProvider).logWear(
+            itemIds: outfit.allItems.map((i) => i.itemId).toList(),
+            outfitKey: (outfit.itemIds.toList()..sort()).join('|'),
+          );
+      if (!mounted) return;
+      setState(() => _logged = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged — nice fit.')),
+      );
+      // Counters + state changed, so the closet and dashboard need fresh data.
+      ref.invalidate(itemsProvider);
+      ref.invalidate(dashboardProvider);
+    } on WardrobeException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _logging = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,11 +188,23 @@ class _OutfitCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(radius: 14, child: Text('$rank')),
+                CircleAvatar(radius: 14, child: Text('${widget.rank}')),
                 const SizedBox(width: 8),
                 Text(
-                  'Score ${(outfit.score * 100).round()}',
+                  'Score ${(widget.outfit.score * 100).round()}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _logged || _logging ? null : _wearToday,
+                  icon: _logging
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(_logged ? Icons.check : Icons.checkroom, size: 18),
+                  label: Text(_logged ? 'Worn' : 'Wear today'),
                 ),
               ],
             ),
@@ -167,9 +213,9 @@ class _OutfitCard extends StatelessWidget {
               height: 100,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: outfit.allItems.length,
+                itemCount: widget.outfit.allItems.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => _ItemThumb(item: outfit.allItems[i]),
+                itemBuilder: (_, i) => _ItemThumb(item: widget.outfit.allItems[i]),
               ),
             ),
           ],

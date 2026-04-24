@@ -68,6 +68,8 @@ class _Body extends ConsumerWidget {
             value: item.costPerWear?.toStringAsFixed(2) ?? '—',
           ),
           const SizedBox(height: 24),
+          _StateActions(item: item),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -117,6 +119,78 @@ class _Body extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
+  }
+}
+
+class _StateActions extends ConsumerStatefulWidget {
+  final ItemModel item;
+  const _StateActions({required this.item});
+
+  @override
+  ConsumerState<_StateActions> createState() => _StateActionsState();
+}
+
+class _StateActionsState extends ConsumerState<_StateActions> {
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function() op, String successMsg) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await op();
+      if (!mounted) return;
+      ref.invalidate(itemByIdProvider(widget.item.itemId));
+      ref.invalidate(itemsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMsg)));
+    } on WardrobeException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ref.read(wardrobeRepositoryProvider);
+    final item = widget.item;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        FilledButton.tonalIcon(
+          icon: const Icon(Icons.checkroom, size: 18),
+          onPressed: _busy || item.state == ItemState.laundry
+              ? null
+              : () => _run(
+                    () => repo.logWear(itemIds: [item.itemId]),
+                    'Wear logged.',
+                  ),
+          label: const Text('Log wear'),
+        ),
+        if (item.state != ItemState.laundry)
+          OutlinedButton.icon(
+            icon: const Icon(Icons.local_laundry_service, size: 18),
+            onPressed: _busy
+                ? null
+                : () => _run(
+                      () => repo.setState(item.itemId, ItemState.laundry),
+                      'Marked dirty.',
+                    ),
+            label: const Text('Send to laundry'),
+          ),
+        if (item.state == ItemState.laundry)
+          FilledButton.icon(
+            icon: const Icon(Icons.cleaning_services, size: 18),
+            onPressed: _busy
+                ? null
+                : () => _run(
+                      () => repo.setState(item.itemId, ItemState.clean),
+                      'Back to clean.',
+                    ),
+            label: const Text('Mark clean'),
+          ),
+      ],
+    );
   }
 }
 

@@ -152,4 +152,61 @@ class WardrobeRepository {
       throw WardrobeException('Could not delete image: ${e.message}', e);
     }
   }
+
+  /// Logs a wear event for each item and lets the Postgres trigger advance
+  /// times_worn / last_worn_at / state. Client never updates those fields
+  /// directly — the trigger is the source of truth.
+  Future<void> logWear({
+    required List<String> itemIds,
+    DateTime? wornAt,
+    String? outfitKey,
+  }) async {
+    if (itemIds.isEmpty) return;
+    final userId = _requireUserId();
+    final ts = (wornAt ?? DateTime.now().toUtc()).toIso8601String();
+    final payload = itemIds
+        .map((id) => {
+              'user_id': userId,
+              'item_id': id,
+              'worn_at': ts,
+              if (outfitKey != null) 'outfit_key': outfitKey,
+            })
+        .toList();
+    try {
+      await _supabase.from('wear_events').insert(payload);
+    } on PostgrestException catch (e) {
+      throw WardrobeException('Failed to log wear: ${e.message}', e);
+    }
+  }
+
+  /// Explicit laundry-state transitions. The trigger handles the
+  /// clean → worn → laundry path on wear; these cover the manual moves
+  /// (mark dirty, mark clean after laundry day).
+  Future<void> setState(String itemId, ItemState newState) async {
+    try {
+      _requireUserId();
+      await _supabase
+          .from('items')
+          .update({'state': newState.name})
+          .eq('item_id', itemId);
+    } on PostgrestException catch (e) {
+      throw WardrobeException('Failed to update state: ${e.message}', e);
+    }
+  }
+
+  /// Bulk "laundry day is done" — flip every laundry-state item to clean.
+  Future<int> markAllLaundryClean() async {
+    try {
+      final userId = _requireUserId();
+      final rows = await _supabase
+          .from('items')
+          .update({'state': ItemState.clean.name})
+          .eq('user_id', userId)
+          .eq('state', ItemState.laundry.name)
+          .select('item_id');
+      return (rows as List).length;
+    } on PostgrestException catch (e) {
+      throw WardrobeException('Failed to clear laundry: ${e.message}', e);
+    }
+  }
 }
