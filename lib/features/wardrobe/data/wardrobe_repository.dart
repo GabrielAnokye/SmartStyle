@@ -204,9 +204,13 @@ class WardrobeRepository {
           .eq('user_id', userId)
           .eq('state', ItemState.laundry.name)
           .select('item_id');
-      return (rows as List).length;
+      return rows.length;
     } on PostgrestException catch (e) {
       throw WardrobeException('Failed to clear laundry: ${e.message}', e);
+    } on AuthException catch (e) {
+      throw WardrobeException('Auth error clearing laundry: ${e.message}', e);
+    } catch (e) {
+      throw WardrobeException('Failed to clear laundry: $e', e);
     }
   }
 }

@@ -170,6 +170,66 @@ void main() {
     });
   });
 
+  group('Feedback Penalty', () {
+    test('outfit sharing ≥2 items with recent thumbs-down is demoted', () {
+      final t1 = mockItem(category: 't-shirt', state: ItemState.clean);
+      final t2 = mockItem(category: 't-shirt', state: ItemState.clean);
+      final b1 = mockItem(category: 'jeans', state: ItemState.clean);
+      final b2 = mockItem(category: 'jeans', state: ItemState.clean);
+
+      final ctx = RecommendationContext(
+        weather: WeatherSnapshot(tempC: 22, feelsLikeC: 22, precipProb: 0, windKph: 0, fetchedAt: DateTime.now()),
+        occasion: Occasion.casual,
+        when: DateTime.now(),
+        recentlyWornItemIds: {},
+        negativeFeedback: [
+          FeedbackSignal(itemIds: {t1.itemId, b1.itemId}, weight: 1.0),
+        ],
+      );
+
+      final outfits = engine.recommend(items: [t1, t2, b1, b2], context: ctx, topN: 4);
+      // The (t1,b1) combo must not be rank 1 anymore.
+      expect(outfits.first.itemIds, isNot(equals({t1.itemId, b1.itemId})));
+    });
+
+    test('single-item overlap does NOT trigger penalty', () {
+      final shirt = mockItem(category: 't-shirt', state: ItemState.clean);
+      final jeans = mockItem(category: 'jeans', state: ItemState.clean);
+      final strangerId = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+      final ctx = RecommendationContext(
+        weather: WeatherSnapshot(tempC: 22, feelsLikeC: 22, precipProb: 0, windKph: 0, fetchedAt: DateTime.now()),
+        occasion: Occasion.casual,
+        when: DateTime.now(),
+        recentlyWornItemIds: {},
+        negativeFeedback: [
+          // Only shirt overlaps; the other item isn't in the closet.
+          FeedbackSignal(itemIds: {shirt.itemId, strangerId}, weight: 1.0),
+        ],
+      );
+
+      final outfit = engine.recommend(items: [shirt, jeans], context: ctx).first;
+      expect(outfit.scoreBreakdown['feedback_penalty'], equals(0.0));
+    });
+
+    test('stronger (fresher) signal dominates older ones', () {
+      final shirt = mockItem(category: 't-shirt', state: ItemState.clean);
+      final jeans = mockItem(category: 'jeans', state: ItemState.clean);
+      final ctx = RecommendationContext(
+        weather: WeatherSnapshot(tempC: 22, feelsLikeC: 22, precipProb: 0, windKph: 0, fetchedAt: DateTime.now()),
+        occasion: Occasion.casual,
+        when: DateTime.now(),
+        recentlyWornItemIds: {},
+        negativeFeedback: [
+          FeedbackSignal(itemIds: {shirt.itemId, jeans.itemId}, weight: 0.2),
+          FeedbackSignal(itemIds: {shirt.itemId, jeans.itemId}, weight: 0.9),
+        ],
+      );
+      final outfit = engine.recommend(items: [shirt, jeans], context: ctx).first;
+      expect(outfit.scoreBreakdown['feedback_penalty'], closeTo(0.9, 1e-9));
+    });
+  });
+
   group('Rejection Penalty & Freshness Delta', () {
     test('Recently worn items apply distinct mathematical penalty clamp', () {
       final overWornShirt = mockItem(category: 't-shirt', state: ItemState.clean, timesWorn: 3);

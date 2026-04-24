@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:smartstyle/features/recommendations/data/feedback_repository.dart';
 import 'package:smartstyle/features/recommendations/data/geolocation_service.dart';
 import 'package:smartstyle/features/recommendations/data/recommendations_providers.dart';
 import 'package:smartstyle/features/recommendations/domain/outfit.dart';
@@ -15,7 +16,10 @@ class HomeDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dataAsync = ref.watch(dashboardProvider);
-    final occasion = ref.watch(occasionProvider);
+    final userOccasion = ref.watch(occasionProvider);
+    final inferredAsync = ref.watch(inferredOccasionProvider);
+    final inferred = inferredAsync.value;
+    final effectiveOccasion = userOccasion ?? inferred ?? Occasion.casual;
 
     return Scaffold(
       appBar: AppBar(
@@ -29,15 +33,23 @@ class HomeDashboardScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(dashboardProvider),
+        onRefresh: () async {
+          // Calendar scan results are cached in the inferred provider; without
+          // this the dashboard refetches outfits but keeps yesterday's (or
+          // pre-permission-grant) occasion guess.
+          ref.invalidate(inferredOccasionProvider);
+          ref.invalidate(dashboardProvider);
+        },
         child: dataAsync.when(
           data: (d) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _WeatherHeader(data: d),
               const SizedBox(height: 16),
+              if (inferred != null && userOccasion == null)
+                _CalendarHint(suggested: inferred),
               _OccasionPicker(
-                current: occasion,
+                current: effectiveOccasion,
                 onSelect: (v) => ref.read(occasionProvider.notifier).set(v),
               ),
               const SizedBox(height: 16),
@@ -55,7 +67,17 @@ class HomeDashboardScreen extends ConsumerWidget {
                 ...d.outfits.asMap().entries.map(
                       (e) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _OutfitCard(rank: e.key + 1, outfit: e.value),
+                        // Key by outfit identity so a different outfit landing
+                        // at the same index gets fresh state (prevents the
+                        // greyed-out "dismissed" flag from sticking after a
+                        // thumbs-down bumps a new combo into place).
+                        child: _OutfitCard(
+                          key: ValueKey(
+                            (e.value.itemIds.toList()..sort()).join('|'),
+                          ),
+                          rank: e.key + 1,
+                          outfit: e.value,
+                        ),
                       ),
                     ),
             ],
@@ -115,6 +137,30 @@ class _WeatherHeader extends StatelessWidget {
   }
 }
 
+class _CalendarHint extends ConsumerWidget {
+  final Occasion suggested;
+  const _CalendarHint({required this.suggested});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.event_available, size: 16, color: Colors.black54),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Calendar suggests ${suggested.name}. Tap a chip to override.',
+              style: const TextStyle(color: Colors.black54, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OccasionPicker extends StatelessWidget {
   final Occasion current;
   final ValueChanged<Occasion> onSelect;
@@ -143,7 +189,7 @@ class _OccasionPicker extends StatelessWidget {
 class _OutfitCard extends ConsumerStatefulWidget {
   final int rank;
   final Outfit outfit;
-  const _OutfitCard({required this.rank, required this.outfit});
+  const _OutfitCard({super.key, required this.rank, required this.outfit});
 
   @override
   ConsumerState<_OutfitCard> createState() => _OutfitCardState();
@@ -152,6 +198,35 @@ class _OutfitCard extends ConsumerStatefulWidget {
 class _OutfitCardState extends ConsumerState<_OutfitCard> {
   bool _logging = false;
   bool _logged = false;
+  bool _dismissed = false;
+
+  Future<void> _rejectOutfit() async {
+    if (_dismissed) return;
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => const _RejectReasonSheet(),
+    );
+    if (reason == null) return;
+    final outfit = widget.outfit;
+    try {
+      await ref.read(feedbackRepositoryProvider).logNegative(
+            itemIds: outfit.allItems.map((i) => i.itemId).toList(),
+            reason: reason,
+          );
+      if (!mounted) return;
+      setState(() => _dismissed = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Noted — we\'ll avoid that combo.')),
+      );
+      // Pull fresh recs so the rejected outfit is demoted now, not next launch.
+      ref.invalidate(dashboardProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save feedback: $e')),
+      );
+    }
+  }
 
   Future<void> _wearToday() async {
     if (_logging || _logged) return;
@@ -195,8 +270,13 @@ class _OutfitCardState extends ConsumerState<_OutfitCard> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
+                IconButton(
+                  tooltip: 'Not for me',
+                  icon: const Icon(Icons.thumb_down_off_alt),
+                  onPressed: _dismissed || _logged ? null : _rejectOutfit,
+                ),
                 FilledButton.icon(
-                  onPressed: _logged || _logging ? null : _wearToday,
+                  onPressed: _logged || _logging || _dismissed ? null : _wearToday,
                   icon: _logging
                       ? const SizedBox(
                           width: 14,
@@ -216,6 +296,55 @@ class _OutfitCardState extends ConsumerState<_OutfitCard> {
                 itemCount: widget.outfit.allItems.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => _ItemThumb(item: widget.outfit.allItems[i]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RejectReasonSheet extends StatelessWidget {
+  const _RejectReasonSheet();
+
+  static const _reasons = <({String key, String label})>[
+    (key: 'too_warm', label: 'Too warm'),
+    (key: 'too_cold', label: 'Too cold'),
+    (key: 'too_formal', label: 'Too formal'),
+    (key: 'too_casual', label: 'Too casual'),
+    (key: 'clash', label: 'Colors clash'),
+    (key: 'other', label: 'Something else'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('What was off?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _reasons
+                  .map((r) => ActionChip(
+                        label: Text(r.label),
+                        onPressed: () => Navigator.pop(context, r.key),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
             ),
           ],

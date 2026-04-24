@@ -117,6 +117,17 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
       ref.invalidate(itemsProvider);
     });
 
+    // Whenever the first-page query emits new data (initial load, invalidation
+    // after logWear/setState/markAllClean, filter change), re-seed the local
+    // pagination cache. Without this, the old .isEmpty-guarded path kept stale
+    // rows because Riverpod 3 preserves prior data during refresh.
+    ref.listen<AsyncValue<List<ItemModel>>>(itemsProvider, (prev, next) {
+      next.whenData((firstPage) {
+        if (!mounted) return;
+        setState(() => _resetPagination(firstPage));
+      });
+    });
+
     final itemsAsync = ref.watch(itemsProvider);
 
     return Scaffold(
@@ -136,9 +147,6 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
       ),
       body: itemsAsync.when(
         data: (firstPage) {
-          if (_loaded.isEmpty && _offset == 0) {
-            _resetPagination(firstPage);
-          }
           if (_loaded.isEmpty) {
             return const Center(child: Text('Your closet is empty. Add some items!'));
           }
@@ -189,12 +197,18 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
   Future<void> _markAllClean() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Laundry day done?'),
         content: const Text('Moves every item currently in the laundry basket back to clean.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Mark clean')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Mark clean'),
+          ),
         ],
       ),
     );
@@ -202,18 +216,23 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
     try {
       final count = await ref.read(wardrobeRepositoryProvider).markAllLaundryClean();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$count item(s) back in rotation.')),
-      );
+      // Invalidate BEFORE resetting local pagination so the next build sees
+      // a loading state and doesn't re-seed _loaded from stale first-page data.
+      ref.invalidate(itemsProvider);
       setState(() {
         _loaded.clear();
         _offset = 0;
         _hasMore = true;
       });
-      ref.invalidate(itemsProvider);
-    } on WardrobeException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count item(s) back in rotation.')),
+      );
+    } catch (e) {
+      // Catch everything — an unhandled AuthException/SocketException here
+      // used to escape into the framework and render the red error screen.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      final msg = e is WardrobeException ? e.message : 'Could not clear laundry: $e';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 }

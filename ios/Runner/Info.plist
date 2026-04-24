@@ -34,6 +34,10 @@
 	<string>SmartStyle needs access to your photo library to import clothing images.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SmartStyle uses your location to pull the local weather for outfit recommendations. You can also set a city manually.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>SmartStyle peeks at today's events on-device to suggest a work/workout/casual outfit. Nothing leaves your phone.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>SmartStyle peeks at today's events on-device to suggest a work/workout/casual outfit. Nothing leaves your phone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

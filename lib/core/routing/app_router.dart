@@ -11,12 +11,7 @@ import 'package:smartstyle/features/wardrobe/presentation/closet_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/item_detail_screen.dart';
 import 'package:smartstyle/features/wardrobe/presentation/item_edit_screen.dart';
 import 'package:smartstyle/features/recommendations/presentation/home_dashboard_screen.dart';
-
-class AnalyticsScreen extends StatelessWidget {
-  const AnalyticsScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Center(child: Text('Analytics Placeholder'));
-}
+import 'package:smartstyle/features/analytics/presentation/analytics_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

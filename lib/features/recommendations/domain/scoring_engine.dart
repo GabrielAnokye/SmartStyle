@@ -8,12 +8,14 @@ class ScoringWeights {
   final double occasionFit;
   final double freshness;
   final double recentlyWornPenalty;
+  final double feedbackPenalty;
 
   const ScoringWeights({
     this.weatherFit = 0.45,
     this.occasionFit = 0.30,
     this.freshness = 0.25,
     this.recentlyWornPenalty = 0.20,
+    this.feedbackPenalty = 0.35,
   });
 }
 
@@ -129,11 +131,13 @@ class ScoringEngine {
     final occasion = _occasionFit(parts, context);
     final freshness = _freshness(parts);
     final recent = _recentPenalty(parts, context);
+    final feedback = _feedbackPenalty(parts, context);
 
     final raw = weights.weatherFit * weather +
         weights.occasionFit * occasion +
         weights.freshness * freshness -
-        weights.recentlyWornPenalty * recent;
+        weights.recentlyWornPenalty * recent -
+        weights.feedbackPenalty * feedback;
 
     // Penalize missing outerwear when it's required — don't hide the outfit,
     // just mark it clearly suboptimal so the top-3 prefers fuller outfits.
@@ -151,6 +155,7 @@ class ScoringEngine {
         'occasion': occasion,
         'freshness': freshness,
         'recent_penalty': recent,
+        'feedback_penalty': feedback,
         'missing_outer': missingOuter,
       },
     );
@@ -202,5 +207,20 @@ class ScoringEngine {
     if (ctx.recentlyWornItemIds.isEmpty) return 0.0;
     final hits = parts.where((i) => ctx.recentlyWornItemIds.contains(i.itemId)).length;
     return hits / parts.length;
+  }
+
+  /// Penalize outfits that share ≥2 items with a recent thumbs-down. Single
+  /// overlaps are ignored — one shared top isn't the same outfit. We take
+  /// the strongest signal so a fresh rejection outweighs older ones.
+  double _feedbackPenalty(List<ItemModel> parts, RecommendationContext ctx) {
+    if (ctx.negativeFeedback.isEmpty) return 0.0;
+    final ids = parts.map((i) => i.itemId).toSet();
+    double worst = 0.0;
+    for (final f in ctx.negativeFeedback) {
+      final overlap = ids.intersection(f.itemIds).length;
+      if (overlap < 2) continue;
+      if (f.weight > worst) worst = f.weight;
+    }
+    return worst.clamp(0.0, 1.0);
   }
 }
