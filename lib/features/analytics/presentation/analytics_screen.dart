@@ -54,9 +54,11 @@ class AnalyticsScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Items with the highest cost-per-wear. Wear them more or consider letting them go.',
-                style: TextStyle(color: Colors.black54),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 12),
               if (s.bottomFiveCpw.isEmpty)
@@ -95,7 +97,10 @@ class _StatCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(color: Colors.black54)),
+            Text(
+              label,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 6),
             Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
           ],
@@ -121,7 +126,7 @@ class _BottomItemTile extends ConsumerWidget {
             borderRadius: BorderRadius.circular(6),
             child: urlAsync.when(
               data: (url) => CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
-              loading: () => Container(color: Colors.grey.shade200),
+              loading: () => Container(color: Theme.of(context).colorScheme.surfaceContainerHighest),
               error: (_, _) => const Icon(Icons.image_not_supported),
             ),
           ),

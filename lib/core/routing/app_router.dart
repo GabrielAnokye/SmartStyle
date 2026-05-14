@@ -12,12 +12,9 @@ import 'package:smartstyle/features/wardrobe/presentation/item_detail_screen.dar
 import 'package:smartstyle/features/wardrobe/presentation/item_edit_screen.dart';
 import 'package:smartstyle/features/recommendations/presentation/home_dashboard_screen.dart';
 import 'package:smartstyle/features/analytics/presentation/analytics_screen.dart';
-
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Center(child: Text('Profile Placeholder'));
-}
+import 'package:smartstyle/features/onboarding/data/onboarding_repository.dart';
+import 'package:smartstyle/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:smartstyle/features/profile/presentation/profile_screen.dart';
 
 class AppScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -46,6 +43,7 @@ class AppScaffold extends StatelessWidget {
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
+  final onboardingAsync = ref.watch(onboardingProvider);
 
   // Invalidate any caches tied to the session whenever the signed-in user changes.
   ref.listen(authStateProvider, (prev, next) {
@@ -60,13 +58,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/dashboard',
     redirect: (context, state) {
       final isAuthenticated = authState.value?.session != null;
-      final isLoggingIn = state.matchedLocation == '/login';
+      final loc = state.matchedLocation;
+      final isLoggingIn = loc == '/login';
+      final isOnboarding = loc == '/onboarding';
       if (!isAuthenticated && !isLoggingIn) return '/login';
       if (isAuthenticated && isLoggingIn) return '/dashboard';
+      // Gate first-run after auth. While the SharedPreferences lookup is in
+      // flight we don't redirect — preventing a dashboard→onboarding flash.
+      final onboarded = onboardingAsync.value;
+      if (isAuthenticated && onboarded == false && !isOnboarding) return '/onboarding';
+      if (isAuthenticated && onboarded == true && isOnboarding) return '/dashboard';
       return null;
     },
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(
         path: '/closet/:id',
         builder: (context, state) => ItemDetailScreen(itemId: state.pathParameters['id']!),

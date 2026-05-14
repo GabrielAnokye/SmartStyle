@@ -25,7 +25,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendly(e.message))),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -42,7 +44,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendly(e.message))),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -63,7 +67,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendly(e.message))),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -75,6 +81,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Supabase returns raw API strings; translate the noisy ones into
+  /// sentences that read like a human wrote them.
+  String _friendly(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('invalid login')) return 'Email or password is incorrect.';
+    if (lower.contains('email not confirmed')) {
+      return 'Check your inbox — confirm your email first.';
+    }
+    if (lower.contains('already registered')) {
+      return 'That email already has an account. Try signing in.';
+    }
+    if (lower.contains('password should be at least')) {
+      return 'Password must be at least 6 characters.';
+    }
+    if (lower.contains('rate limit')) return 'Too many attempts — try again in a minute.';
+    return raw;
   }
 
   @override

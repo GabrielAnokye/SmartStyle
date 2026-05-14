@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:smartstyle/features/recommendations/data/feedback_repository.dart';
 import 'package:smartstyle/features/recommendations/data/geolocation_service.dart';
 import 'package:smartstyle/features/recommendations/data/recommendations_providers.dart';
+import 'package:smartstyle/features/profile/data/settings_repository.dart';
 import 'package:smartstyle/features/recommendations/domain/outfit.dart';
 import 'package:smartstyle/features/recommendations/domain/recommendation_context.dart';
 import 'package:smartstyle/features/wardrobe/data/wardrobe_repository.dart';
@@ -102,13 +103,14 @@ class HomeDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _WeatherHeader extends StatelessWidget {
+class _WeatherHeader extends ConsumerWidget {
   final DashboardData data;
   const _WeatherHeader({required this.data});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final w = data.weather;
+    final unit = ref.watch(settingsProvider).value?.tempUnit ?? TempUnit.celsius;
     final label = data.location.label ??
         '${data.location.lat.toStringAsFixed(2)}, ${data.location.lon.toStringAsFixed(2)}';
     return Card(
@@ -124,7 +126,7 @@ class _WeatherHeader extends StatelessWidget {
                 children: [
                   Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
                   Text(
-                    '${w.tempC.round()}°C · feels ${w.feelsLikeC.round()}°C · '
+                    '${_fmt(w.tempC, unit)} · feels ${_fmt(w.feelsLikeC, unit)} · '
                     '${(w.precipProb * 100).round()}% rain',
                   ),
                 ],
@@ -135,6 +137,11 @@ class _WeatherHeader extends StatelessWidget {
       ),
     );
   }
+
+  String _fmt(double c, TempUnit unit) {
+    if (unit == TempUnit.fahrenheit) return '${(c * 9 / 5 + 32).round()}°F';
+    return '${c.round()}°C';
+  }
 }
 
 class _CalendarHint extends ConsumerWidget {
@@ -143,16 +150,17 @@ class _CalendarHint extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Icon(Icons.event_available, size: 16, color: Colors.black54),
+          Icon(Icons.event_available, size: 16, color: muted),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               'Calendar suggests ${suggested.name}. Tap a chip to override.',
-              style: const TextStyle(color: Colors.black54, fontSize: 13),
+              style: TextStyle(color: muted, fontSize: 13),
             ),
           ),
         ],

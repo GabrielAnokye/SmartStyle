@@ -60,6 +60,8 @@ dependencies:
 
 dev_dependencies:
   sentry_dart_plugin: ^3.3.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.3
   flutter_test:
     sdk: flutter
 
@@ -119,3 +121,19 @@ sentry:
   upload_source_maps: true
   project: flutter
   org: persona-mv
+
+# Run `flutter pub run flutter_launcher_icons` after replacing the PNG with a
+# 1024×1024 master asset. iOS requires a square opaque image — no transparency.
+flutter_launcher_icons:
+  ios: true
+  image_path: "assets/branding/app_icon.png"
+  remove_alpha_ios: true
+  background_color_ios: "#2B4A6B"
+
+# Run `flutter pub run flutter_native_splash:create` after dropping in the
+# 1152×1152 logo. color matches the seed color used in ThemeData.
+flutter_native_splash:
+  color: "#2B4A6B"
+  color_dark: "#0E1A26"
+  image: "assets/branding/splash_logo.png"
+  ios: true

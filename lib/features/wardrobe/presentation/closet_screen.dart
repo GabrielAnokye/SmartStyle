@@ -140,6 +140,7 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
             onPressed: _markAllClean,
           ),
           IconButton(
+            tooltip: 'Filter items',
             icon: const Icon(Icons.filter_list),
             onPressed: () => _openFilterSheet(context),
           ),
@@ -148,7 +149,9 @@ class _ClosetScreenState extends ConsumerState<ClosetScreen> {
       body: itemsAsync.when(
         data: (firstPage) {
           if (_loaded.isEmpty) {
-            return const Center(child: Text('Your closet is empty. Add some items!'));
+            return _EmptyCloset(
+              onAdd: () => context.go('/add'),
+            );
           }
           return RefreshIndicator(
             onRefresh: () async {
@@ -373,6 +376,44 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _EmptyCloset extends StatelessWidget {
+  final VoidCallback onAdd;
+  const _EmptyCloset({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.checkroom, size: 72, color: muted),
+            const SizedBox(height: 16),
+            const Text(
+              'Your closet is empty.',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Snap a photo or enter an item manually to start building your wardrobe.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: muted),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_a_photo),
+              label: const Text('Add your first item'),
+            ),
+          ],
+        ),
       ),
     );
   }

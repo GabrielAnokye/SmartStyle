@@ -42,12 +42,18 @@ class SmartStyleApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
+    const seed = Color(0xFF2B4A6B);
     return MaterialApp.router(
       title: 'SmartStyle',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2B4A6B)),
+        colorScheme: ColorScheme.fromSeed(seedColor: seed),
         useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

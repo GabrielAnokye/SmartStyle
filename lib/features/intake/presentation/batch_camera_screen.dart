@@ -153,6 +153,7 @@ class _BatchCameraScreenState extends ConsumerState<BatchCameraScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         IconButton(
+                          tooltip: 'Undo last capture',
                           icon: const Icon(Icons.undo, color: Colors.white),
                           onPressed: _drafts.isEmpty ? null : _removeLast,
                         ),
@@ -175,6 +176,7 @@ class _BatchCameraScreenState extends ConsumerState<BatchCameraScreen> {
                           ),
                         ),
                         IconButton(
+                          tooltip: 'Finish batch',
                           icon: const Icon(Icons.check, color: Colors.white),
                           onPressed: _drafts.isEmpty ? null : _done,
                         ),

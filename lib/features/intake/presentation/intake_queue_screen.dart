@@ -105,6 +105,7 @@ class _QueueTile extends StatelessWidget {
           ],
         ),
         trailing: IconButton(
+          tooltip: 'Remove from queue',
           icon: const Icon(Icons.delete_outline),
           onPressed: onRemove,
         ),
